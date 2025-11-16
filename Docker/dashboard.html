@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+  <body>
+    <h1>CubeSat Ground Station Dashboard</h1>
+
+    <div style="margin-bottom:10px;">
+      <button onclick="sendCmd({command:'set_mode', mode:'SAFE'})">Set Mode SAFE</button>
+      <button onclick="sendCmd({command:'set_mode', mode:'IDLE'})">Set Mode IDLE</button>
+      <button onclick="sendCmd({command:'set_mode', mode:'SCIENCE'})">Set Mode SCIENCE</button>
+    </div>
+
+    <h3>Telemetry (downlink)</h3>
+    <pre id="telemetry"></pre>
+
+    <h3>Command ACKs (uplink → processed)</h3>
+    <ul id="acks" style="font-family:monospace;"></ul>
+
+    <script>
+      let seq = 1;
+      const telemEl = document.getElementById('telemetry');
+      const acksEl  = document.getElementById('acks');
+
+      function addAck(text){
+        const li = document.createElement('li');
+        li.textContent = text;
+        acksEl.prepend(li);
+      }
+
+      const ws = new WebSocket("ws://127.0.0.1:8080/ws");
+      ws.onopen = () => addAck("Connection established");
+
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.type === "telemetry") {
+            // Show the latest telemetry/state
+            telemEl.textContent = JSON.stringify(msg, null, 2);
+          } else if (msg.type === "ack") {
+            // Show ACK after processing
+            addAck(`ACK seq=${msg.seq} command=${msg.command} status=${msg.status} state=${JSON.stringify(msg.applied_state)}`);
+          }
+        } catch (e) {
+          addAck("Parse error: " + e.message);
+        }
+      };
+
+      ws.onclose = () => addAck("Connection closed");
+      ws.onerror = () => addAck("WebSocket error");
+
+      function sendCmd(obj){
+        if (ws.readyState !== WebSocket.OPEN) {
+          addAck("Cannot send: socket not open");
+          return;
+        }
+        obj.seq = seq++;
+        ws.send(JSON.stringify(obj));
+        // (ACK will arrive later after server latency & processing)
+      }
+    </script>
+  </body>
+</html>

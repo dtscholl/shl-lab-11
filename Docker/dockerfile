@@ -1,0 +1,27 @@
+FROM ubuntu:jammy
+
+ARG USERNAME="root"
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+RUN apt-get update \
+   && apt-get install -y sudo \
+   && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
+   && chmod 0440 /etc/sudoers.d/$USERNAME
+
+RUN sudo apt-get update && apt-get install -y \
+    nano \
+    git \
+    wget \
+    uvicorn \
+    python3-pip
+
+RUN apt-get update && pip3 install \
+   'uvicorn[standard]' \
+    fastapi
+
+SHELL [ "/bin/bash", "-c" ]
+
+WORKDIR /home
+
+RUN git clone https://github.gatech.edu/bgunter8/GSplatC3BF.git
